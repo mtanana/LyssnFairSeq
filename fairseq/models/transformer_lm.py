@@ -130,8 +130,10 @@ class TransformerLanguageModel(FairseqLanguageModel):
 
         # make sure all arguments are present in older models
         base_lm_architecture(args)
+        args.adaptive_input = False
+        args.tie_adaptive_weights = False
 
-        if args.decoder_layers_to_keep:
+        if hasattr(args, "decoder_layers_to_keep"):
             args.decoder_layers = len(args.decoder_layers_to_keep.split(","))
 
         if getattr(args, 'max_target_positions', None) is None:
@@ -144,6 +146,8 @@ class TransformerLanguageModel(FairseqLanguageModel):
                 args.char_embedder_highway_layers,
             )
         elif args.adaptive_input:
+            print("Adaptive Input " + str(args.adaptive_input))
+            print("Adaptive Cutoff: "+str(args.adaptive_input_cutoff))
             embed_tokens = AdaptiveInput(
                 len(task.source_dictionary), task.source_dictionary.pad(), args.decoder_input_dim,
                 args.adaptive_input_factor, args.decoder_embed_dim,
@@ -217,6 +221,9 @@ def base_lm_architecture(args):
 
     args.no_scale_embedding = getattr(args, 'no_scale_embedding', False)
     args.layernorm_embedding = getattr(args, 'layernorm_embedding', False)
+    args.quant_noise_pq = getattr(args, 'quant_noise_pq', 0)
+    args.quant_noise_pq_block_size = getattr(args, 'quant_noise_pq_block_size', 8)
+    args.quant_noise_scalar = getattr(args, 'quant-noise-scalar', 0)
 
 
 @register_model_architecture('transformer_lm', 'transformer_lm_big')

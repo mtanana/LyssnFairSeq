@@ -31,6 +31,7 @@ if [ ! -d "$fairseq_root" ]; then
 fi
 
 echo "Data Download"
+
 for part in dev-clean test-clean dev-other test-other train-clean-100 train-clean-360 train-other-500; do
     url=$base_url/$part.tar.gz
     if ! wget -P $download_dir $url; then
