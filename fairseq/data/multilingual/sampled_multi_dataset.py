@@ -119,7 +119,15 @@ class SampledMultiDataset(FairseqDataset):
         self._size_cache = {}
         self.set_epoch(epoch)
 
+    def _clean_if_not_none(self, var_list):
+        for v in var_list:
+            if v is not None:
+                del v
+
     def _reset_cached_properties(self):
+        self._clean_if_not_none([
+            self._sizes, self._ordered_indices, self._cur_indices
+        ])
         self._sizes = None
         self._ordered_indices = None
         self._cur_indices = None
@@ -212,7 +220,8 @@ class SampledMultiDataset(FairseqDataset):
 
     def __getitem__(self, index):
         ds_idx, ds_sample_idx = self._get_dataset_and_index(index)
-        return (ds_idx, self.datasets[ds_idx][ds_sample_idx])
+        ret = (ds_idx, self.datasets[ds_idx][ds_sample_idx])
+        return ret
 
     def num_tokens(self, index):
         ds_idx, ds_sample_idx = self._get_dataset_and_index(index)
@@ -246,14 +255,14 @@ class SampledMultiDataset(FairseqDataset):
             )
         else:
             samples_dict = defaultdict(list)
-            max_size = defaultdict(int)
+            pad_to_length = defaultdict(int) if 'pad_to_length' not in extra_args else extra_args['pad_to_length']
             for ds_idx, s in samples:
-                max_size['source'] = max(max_size['source'], s['source'].size(0))
+                pad_to_length['source'] = max(pad_to_length['source'], s['source'].size(0))
                 if s['target'] is not None:
-                    max_size['target'] = max(max_size['target'], s['target'].size(0))
+                    pad_to_length['target'] = max(pad_to_length['target'], s['target'].size(0))
                 samples_dict[ds_idx].append(s)
             batches = [
-                self.datasets[i].collater(samples_dict[i], max_size=max_size)
+                self.datasets[i].collater(samples_dict[i], pad_to_length=pad_to_length)
                 for i in range(len(self.datasets))
                 if len(samples_dict[i]) > 0
             ]
@@ -366,6 +375,10 @@ class SampledMultiDataset(FairseqDataset):
         )
         indices, cumulated_sizes, virtual_size_per_dataset = self.get_virtual_indices(
             rng, self.datasets, self.sample_ratios, self.virtual_size)
+
+        self._clean_if_not_none([
+            self.cumulated_sizes, self.virtual_size_per_dataset
+        ])
         self._cur_indices = plasma_utils.PlasmaArray(indices)
         self.cumulated_sizes = plasma_utils.PlasmaArray(cumulated_sizes)
         self.virtual_size_per_dataset = plasma_utils.PlasmaArray(virtual_size_per_dataset)
