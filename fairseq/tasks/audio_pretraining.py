@@ -90,6 +90,7 @@ class AudioPretrainingTask(FairseqTask):
         Args:
             split (str): name of the split (e.g., train, valid, test)
         """
+        print("Loading "+split)
         manifest = os.path.join(self.args.data, "{}.tsv".format(split))
         self.datasets[split] = FileAudioDataset(
             manifest,
@@ -102,9 +103,12 @@ class AudioPretrainingTask(FairseqTask):
         )
 
         if self.args.labels:
+
             dict_path = os.path.join(self.args.data, f"dict.{self.args.labels}.txt")
+            print("Loading dict" +str(dict_path))
             self._target_dictionary = Dictionary.load(dict_path)
-            label_path = os.path.join(self.args.data, f"{split}.{self.args.labels}")
+            label_path = os.path.join(self.args.data, f"{split}.{self.args.labels}.txt")
+            print("Loading Labels" + str(label_path))
             labels = []
             with open(label_path, "r") as f:
                 for line in f:

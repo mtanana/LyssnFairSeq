@@ -28,9 +28,9 @@ class AdaptiveInput(nn.Module):
 
         if vocab_size > cutoff[-1]:
             cutoff = cutoff + [vocab_size]
-        else:
-            assert vocab_size == cutoff[
-                -1], 'cannot specify cutoff larger than vocab size'
+        #else:
+            #assert vocab_size == cutoff[
+            #    -1], 'cannot specify cutoff larger than vocab size'
 
         self.cutoff = cutoff
         self.embedding_dim = output_dim

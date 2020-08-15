@@ -130,8 +130,7 @@ class TransformerLanguageModel(FairseqLanguageModel):
 
         # make sure all arguments are present in older models
         base_lm_architecture(args)
-        args.adaptive_input = False
-        args.tie_adaptive_weights = False
+
 
         if hasattr(args, "decoder_layers_to_keep"):
             args.decoder_layers = len(args.decoder_layers_to_keep.split(","))
@@ -148,6 +147,7 @@ class TransformerLanguageModel(FairseqLanguageModel):
         elif args.adaptive_input:
             print("Adaptive Input " + str(args.adaptive_input))
             print("Adaptive Cutoff: "+str(args.adaptive_input_cutoff))
+            print("Vocab Size: "+str(len(task.source_dictionary.symbols)))
             embed_tokens = AdaptiveInput(
                 len(task.source_dictionary), task.source_dictionary.pad(), args.decoder_input_dim,
                 args.adaptive_input_factor, args.decoder_embed_dim,
@@ -198,6 +198,7 @@ def base_lm_architecture(args):
     args.adaptive_softmax_dropout = getattr(args, 'adaptive_softmax_dropout', 0)
     args.adaptive_softmax_factor = getattr(args, 'adaptive_softmax_factor', 4)
     args.decoder_learned_pos = getattr(args, 'decoder_learned_pos', False)
+    args.decoder_layerdrop = getattr(args, "decoder_layerdrop", 0)
     args.activation_fn = getattr(args, 'activation_fn', 'relu')
 
     args.add_bos_token = getattr(args, 'add_bos_token', False)

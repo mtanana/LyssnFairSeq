@@ -288,11 +288,11 @@ def main(args, task=None, model_state=None):
             return W2lViterbiDecoder(args, task.target_dictionary)
         elif w2l_decoder == "kenlm":
             from examples.speech_recognition.w2l_decoder import W2lKenLMDecoder
-
+            print(task.target_dictionary.symbols)
             return W2lKenLMDecoder(args, task.target_dictionary)
         elif w2l_decoder == "fairseqlm":
             from examples.speech_recognition.w2l_decoder import W2lFairseqLMDecoder
-
+            print(task.target_dictionary.symbols)
             return W2lFairseqLMDecoder(args, task.target_dictionary)
         else:
             return super().build_generator(args)

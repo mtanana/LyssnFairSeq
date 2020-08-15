@@ -21,7 +21,8 @@ from fairseq.utils import apply_to_sample
 from examples.speech_recognition.data.replabels import unpack_replabels
 
 try:
-    from wav2letter.common import create_word_dict, load_words
+    from wav2letter.common import create_word_dict, load_words, tkn_to_idx
+    from wav2letter.common import Dictionary as Wav2LetterDict
     from wav2letter.criterion import CpuViterbiPath, get_data_ptr_as_bytes
     from wav2letter.decoder import (
         CriterionType,
@@ -124,6 +125,15 @@ class W2lViterbiDecoder(W2lDecoder):
             for b in range(B)
         ]
 
+#assumes uppercase
+def getValidSpellingTokens(letterDictionary, spellingArray):
+    validIndexes = []
+    for token in spellingArray:
+        for char in token:
+            idx = letterDictionary.index(char.upper())
+            if idx != letterDictionary.unk():
+                validIndexes.append(idx)
+    return validIndexes
 
 class W2lKenLMDecoder(W2lDecoder):
     def __init__(self, args, tgt_dict):
@@ -134,22 +144,34 @@ class W2lKenLMDecoder(W2lDecoder):
             if "<ctc_blank>" in tgt_dict.indices
             else tgt_dict.bos()
         )
+        print(args.lexicon)
+        print(tgt_dict.symbols)
         self.lexicon = load_words(args.lexicon)
+
         self.word_dict = create_word_dict(self.lexicon)
+        print(self.word_dict)
         self.unk_word = self.word_dict.get_index("<unk>")
 
         self.lm = KenLM(args.kenlm_model, self.word_dict)
         self.trie = Trie(self.vocab_size, self.silence)
+
+        #token_dict = Wav2LetterDict("/lyssn/datasets/asr/test1/librispeech-train-all-unigram-10000.tokens")
 
         start_state = self.lm.start(False)
         for i, (word, spellings) in enumerate(self.lexicon.items()):
             word_idx = self.word_dict.get_index(word)
             _, score = self.lm.score(start_state, word_idx)
             for spelling in spellings:
-                spelling_idxs = [tgt_dict.index(token) for token in spelling]
+
+                #spelling_idxs = tkn_to_idx(" ".join(spelling), token_dict, 1)
+
+                spelling_idxs = getValidSpellingTokens( tgt_dict, spelling)
+                #print( spelling_idxs)
+
                 assert (
                     tgt_dict.unk() not in spelling_idxs
-                ), f"{spelling} {spelling_idxs}"
+                ), f"Unknown in spellings {spelling} {spelling_idxs}"
+
                 self.trie.insert(spelling_idxs, word_idx, score)
         self.trie.smear(SmearingMode.MAX)
 
@@ -387,7 +409,7 @@ class W2lFairseqLMDecoder(W2lDecoder):
                     spelling_idxs = [tgt_dict.index(token) for token in spelling]
                     assert (
                         tgt_dict.unk() not in spelling_idxs
-                    ), f"{spelling} {spelling_idxs}"
+                    ), f"Missing token in spelling {spelling} {spelling_idxs}"
                     self.trie.insert(spelling_idxs, word_idx, score)
             self.trie.smear(SmearingMode.MAX)
 
@@ -427,7 +449,9 @@ class W2lFairseqLMDecoder(W2lDecoder):
             results = self.decoder.decode(emissions_ptr, T, N)
 
             nbest_results = results[: self.nbest]
+
             hypos.append([make_hypo(result) for result in nbest_results])
+
             self.lm.empty_cache()
 
         return hypos

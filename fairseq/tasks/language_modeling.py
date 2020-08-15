@@ -109,6 +109,8 @@ class LanguageModelingTask(FairseqTask):
     def setup_dictionary(cls, args, **kwargs):
         dictionary = None
         output_dictionary = None
+        print('Setup Dictionary')
+        print(args.data)
         if args.data:
             paths = utils.split_paths(args.data)
             assert len(paths) > 0
