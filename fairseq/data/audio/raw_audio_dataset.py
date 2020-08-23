@@ -163,7 +163,7 @@ class FileAudioDataset(RawAudioDataset):
             for line in f:
                 items = line.strip().split("\t")
                 assert len(items) == 2, line
-                sz = int(items[1])
+                sz = int(items[1])   #mike addition, since i made these ms
                 if min_length is not None and sz < min_length:
                     skipped += 1
                     continue
