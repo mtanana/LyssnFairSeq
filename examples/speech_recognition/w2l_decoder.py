@@ -119,8 +119,9 @@ class W2lViterbiDecoder(W2lDecoder):
             get_data_ptr_as_bytes(viterbi_path),
             get_data_ptr_as_bytes(workspace),
         )
+
         return [
-            [{"tokens": self.get_tokens(viterbi_path[b].tolist()), "score": 0}]
+            [{"tokens": self.get_tokens(viterbi_path[b].tolist()), "score": 0, "path":viterbi_path[b]}]
             for b in range(B)
         ]
 

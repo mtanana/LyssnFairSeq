@@ -45,6 +45,7 @@ __all__ = [
 
 
 def build_model(args, task):
+    print(args.arch)
     return ARCH_MODEL_REGISTRY[args.arch].build_model(args, task)
 
 
@@ -121,6 +122,7 @@ def register_model_architecture(model_name, arch_name):
 
 # automatically import any Python files in the models/ directory
 models_dir = os.path.dirname(__file__)
+print("Loading Models")
 for file in os.listdir(models_dir):
     path = os.path.join(models_dir, file)
     if (

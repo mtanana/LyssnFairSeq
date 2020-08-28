@@ -105,8 +105,8 @@ class AudioPretrainingTask(FairseqTask):
         if self.args.labels:
 
             dict_path = os.path.join(self.args.data, f"dict.{self.args.labels}.txt")
-            print("Loading dict" +str(dict_path))
-            self._target_dictionary = Dictionary.load(dict_path)
+            self.set_target_dictionary(dict_path)
+
             label_path = os.path.join(self.args.data, f"{split}.{self.args.labels}.txt")
             print("Loading Labels" + str(label_path))
             labels = []
@@ -125,6 +125,11 @@ class AudioPretrainingTask(FairseqTask):
                 process_label=process_label,
                 add_to_input=not self.is_ctc,
             )
+
+    def set_target_dictionary(self, file_path):
+        print("Loading dict" + str(file_path))
+        self._target_dictionary = Dictionary.load(file_path)
+
 
     @property
     def source_dictionary(self):

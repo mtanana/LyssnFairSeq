@@ -177,8 +177,9 @@ def load_models_and_criterions(filenames, data_path, arg_overrides=None, task=No
         filenames = [0]
     else:
         filenames = filenames.split(":")
-
+    print(arg_overrides)
     for filename in filenames:
+
         if model_state is None:
             if not os.path.exists(filename):
                 raise IOError("Model file not found: {}".format(filename))
@@ -189,8 +190,10 @@ def load_models_and_criterions(filenames, data_path, arg_overrides=None, task=No
         args = state["args"]
         if task is None:
             task = tasks.setup_task(args)
+
         model = task.build_model(args)
         model.load_state_dict(state["model"], strict=True)
+        print(model)
         models.append(model)
 
         criterion = task.build_criterion(args)
@@ -255,7 +258,7 @@ def main(args, task=None, model_state=None):
     logger.info("| decoding with criterion {}".format(args.criterion))
 
     # Load ensemble
-
+    print(args)
     if args.load_emissions:
         models, criterions = [], []
     else:

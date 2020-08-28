@@ -355,7 +355,7 @@ class Wav2VecEncoder(FairseqEncoder):
         self.final_dropout = nn.Dropout(args.final_dropout)
         self.freeze_finetune_updates = args.freeze_finetune_updates
         self.num_updates = 0
-
+        print("Dictionary: "+str(tgt_dict))
         if tgt_dict is not None:
             self.proj = Linear(d, len(tgt_dict))
         elif getattr(args, 'decoder_embed_dim', d) != d:
