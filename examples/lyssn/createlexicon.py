@@ -2,8 +2,8 @@
 Creates the spelling lexicon
 '''
 
-textloc= "/lyssn/datasets/asr/asraug2020/train.wrd.txt"
-lexicon = "/lyssn/datasets/asr/asraug2020/lexicon.txt"
+textloc= "/lyssn/datasets/asr/asraug2020fixedlength10/train.wrd.txt"
+lexicon = "/lyssn/datasets/asr/asraug2020fixedlength10/lexicon.txt"
 words = set()
 
 with open(textloc,"r") as text:

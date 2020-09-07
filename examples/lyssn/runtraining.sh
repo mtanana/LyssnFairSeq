@@ -3,7 +3,7 @@ export CUDA_VISIBLE_DEVICES=2
 
 #for some reason I think this only uses the valid subset
 
-python ../../train.py /lyssn/datasets/asr/asraug2020fixedlength/ --save-dir /lyssn/temp/asr/wav2vec/asraug20202.0/ --fp16 \
+python ../../train.py /lyssn/datasets/asr/asraug2020fixedlength10/ --save-dir /lyssn/temp/asr/wav2vec/asraug20202.2/ --fp16 \
 --reset-dataloader \
 --post-process letter --valid-subset valid  --no-epoch-checkpoints --best-checkpoint-metric wer --num-workers 15 \
 --max-update 2050000 --sentence-avg --task audio_pretraining --arch wav2vec_ctc --w2v-path /lyssn/datasets/asr/test2/wav2vec_vox.pt \
@@ -13,7 +13,7 @@ python ../../train.py /lyssn/datasets/asr/asraug2020fixedlength/ --save-dir /lys
 --adam-betas '(0.9, 0.98)' --adam-eps 1e-08 --lr 2e-05 --lr-scheduler tri_stage --warmup-steps 8000 --hold-steps 100000 \
 --decay-steps 1450000 --final-lr-scale 0.05 --final-dropout 0.0 --dropout 0.0 --activation-dropout 0.1 --criterion ctc \
 --attention-dropout 0.0  --max-tokens 2000000 --max-tokens-valid 3000000   --seed 2337 --log-format tqdm --log-interval 100 --ddp-backend no_c10d \
---tensorboard-logdir /lyssn/temp/asr/wav2vec/test2/tensorboardaug2020v2.0 \
+--tensorboard-logdir /lyssn/temp/asr/wav2vec/test2/tensorboardaug2020v2.2 \
 
 
 #--wer-args '("/path/to/lm/4-gram.bin","/path/to/lexicon",2,-1)' \

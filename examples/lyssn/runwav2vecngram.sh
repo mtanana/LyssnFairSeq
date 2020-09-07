@@ -22,19 +22,19 @@ export CUDA_VISIBLE_DEVICES=0
 #/lyssn/code/mike/fairseq/examples/wav2vec/wav2vec2_vox_960h.pt
 
 file='lyssn.trigram.bin'
-model='/lyssn/temp/asr/wav2vec/asraug20201.8/checkpoint_best.pt'
+model='/lyssn/temp/asr/wav2vec/asraug20202.2/checkpoint_best.pt'
 lmweight=.5
 insscore=-.5
-beam=20
+beam=50
 
-python ../../examples/speech_recognition/infer.py /lyssn/datasets/asr/asraug2020/ \
+python ../../examples/speech_recognition/infer.py /lyssn/datasets/asr/asraug2020fixedlength10/ \
 --task audio_pretraining \
 --nbest 1 --path ${model} --gen-subset valid \
 --results-path /lyssn/temp/asr/wav2vec/libritrigram/ --w2l-decoder kenlm \
---lexicon /lyssn/datasets/asr/asraug2020/lexicon.txt \
+--lexicon /lyssn/datasets/asr/asraug2020fixedlength10/lexicon.txt \
 --beam ${beam} \
---lm-model /lyssn/datasets/asr/asraug2020/${file} \
---lm-weight ${lmweight} --word-score ${insscore} --sil-weight 0 --criterion ctc --labels ltr --max-tokens 2100000 \
+--lm-model /lyssn/datasets/asr/asraug2020fixedlength10/${file} \
+--lm-weight ${lmweight} --word-score ${insscore} --sil-weight 0 --criterion ctc --labels ltr --max-tokens 4000000 \
 --post-process letter
 
 

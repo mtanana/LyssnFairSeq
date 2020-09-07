@@ -7,9 +7,9 @@ export KENLM_ROOT_DIR=/lyssn/code/mike/kenlm
 
 
 
-python examples/speech_recognition/infer.py /lyssn/datasets/asr/asraug2020/ \
+python ../../examples/speech_recognition/infer.py /lyssn/datasets/asr/asraug2020fixedlength10/ \
 --task audio_pretraining \
---nbest 1 --path /lyssn/datasets/asr/test2/wav2vec2_vox_960h.pt --gen-subset valid \
+--nbest 1 --path /lyssn/temp/asr/wav2vec/asraug20202.2/checkpoint_best.pt --gen-subset valid \
 --results-path /lyssn/temp/asr/wav2vec/ --w2l-decoder viterbi \
 --lexicon /lyssn/datasets/asr/test1/librispeech-train+dev-unigram-10000-nbest10.lexicon \
 --lm-model /lyssn/datasets/asr/test1/lm_librispeech_kenlm_wp_10k_6gram_pruning_000012.bin \
