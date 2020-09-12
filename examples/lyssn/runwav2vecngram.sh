@@ -21,11 +21,11 @@ export CUDA_VISIBLE_DEVICES=0
 #/lyssn/temp/asr/wav2vec/asraug20201.8/checkpoint_best.pt
 #/lyssn/code/mike/fairseq/examples/wav2vec/wav2vec2_vox_960h.pt
 
-file='lyssn.trigram.bin'
+file='lyssn.bigram.bin'
 model='/lyssn/temp/asr/wav2vec/asraug20202.2/checkpoint_best.pt'
 lmweight=.5
-insscore=-.5
-beam=50
+insscore=-.2
+beam=500
 
 python ../../examples/speech_recognition/infer.py /lyssn/datasets/asr/asraug2020fixedlength10/ \
 --task audio_pretraining \

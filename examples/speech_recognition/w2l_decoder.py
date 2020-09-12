@@ -191,6 +191,7 @@ class W2lKenLMDecoder(W2lDecoder):
             results = self.decoder.decode(emissions_ptr, T, N)
 
             nbest_results = results[: self.nbest]
+
             hypos.append(
                 [
                     {
@@ -199,6 +200,7 @@ class W2lKenLMDecoder(W2lDecoder):
                         "words": [
                             self.word_dict.get_entry(x) for x in result.words if x >= 0
                         ],
+                        "results": result
                     }
                     for result in nbest_results
                 ]
