@@ -29,4 +29,3 @@ python examples/speech_recognition/infer.py /lyssn/datasets/asr/test1/ \
 --lm-weight .5 --word-score -1 --sil-weight 0 --criterion ctc --labels ltr --max-tokens 4000000 \
 --post-process letter
 
-#--lexicon /lyssn/datasets/asr/test1/libri-upper.dict \

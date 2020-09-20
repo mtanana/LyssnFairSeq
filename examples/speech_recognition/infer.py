@@ -177,7 +177,7 @@ def load_models_and_criterions(filenames, data_path, arg_overrides=None, task=No
         filenames = [0]
     else:
         filenames = filenames.split(":")
-    print(arg_overrides)
+
     for filename in filenames:
 
         if model_state is None:
@@ -193,7 +193,7 @@ def load_models_and_criterions(filenames, data_path, arg_overrides=None, task=No
 
         model = task.build_model(args)
         model.load_state_dict(state["model"], strict=True)
-        print(model)
+
         models.append(model)
 
         criterion = task.build_criterion(args)
@@ -402,6 +402,7 @@ def main(args, task=None, model_state=None):
         if lengths_t > 0:
             wer = errs_t * 100.0 / lengths_t
             logger.info(f"WER: {wer}")
+            print(f"WER: {wer}")
 
         logger.info(
             "| Processed {} sentences ({} tokens) in {:.1f}s ({:.2f}"

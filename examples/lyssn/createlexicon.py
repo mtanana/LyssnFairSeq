@@ -1,10 +1,19 @@
 '''
 Creates the spelling lexicon
+Usage python createlexicon.py inputfile.txt outputfile.txt
 '''
 
-textloc= "/lyssn/datasets/asr/asraug2020fixedlength10/train.wrd.txt"
-lexicon = "/lyssn/datasets/asr/asraug2020fixedlength10/lexicon.txt"
+
+import sys
+
+
+#the word level text file
+textloc= sys.argv[1]
+#the output file
+lexicon = sys.argv[2]
 words = set()
+print(textloc)
+print(lexicon)
 
 with open(textloc,"r") as text:
     for line in text:

@@ -21,18 +21,16 @@ export CUDA_VISIBLE_DEVICES=1
 #/lyssn/temp/asr/wav2vec/asraug20201.8/checkpoint_best.pt
 #/lyssn/code/mike/fairseq/examples/wav2vec/wav2vec2_vox_960h.pt
 
-file='lyssn.bigram.bin'
+file='/lyssn/datasets/asr/asraug2020fixedlength10/lyssnwpsych.trigram.bin'
+lexicon='/lyssn/datasets/asr/asraug2020fixedlength10/lexiconwpsych.txt'
 model='/lyssn/temp/asr/wav2vec/asraug20202.2/checkpoint_best.pt'
 #lmweight=.5
 #insscore=-.2
 beam=20
 resultsfile="results.txt"
+lmweight=1.25
+insscore=-.5
 
-
-for lmweight in   .5 1 1.25 1.5 1.75 2
-do
-  for insscore in  -1 -.75 -.5 -.25 -.1 0
-  do
 
     echo 'model ' $model
     echo 'running ' ${file}
@@ -44,9 +42,9 @@ do
      --task audio_pretraining \
     --nbest 1 --path ${model} --gen-subset valid \
     --results-path /lyssn/temp/asr/wav2vec/libritrigram/ --w2l-decoder kenlm \
-    --lexicon /lyssn/datasets/asr/asraug2020fixedlength10/lexicon.txt \
+    --lexicon ${lexicon} \
     --beam ${beam} \
-    --lm-model /lyssn/datasets/asr/asraug2020fixedlength10/${file} \
+    --lm-model ${file} \
     --lm-weight ${lmweight} --word-score ${insscore} --sil-weight 0 --criterion ctc --labels ltr --max-tokens 4000000 \
     --post-process letter >> $resultsfile
 
@@ -57,8 +55,3 @@ do
     echo 'lmweight ' $lmweight >> $resultsfile
     echo 'inscore ' $insscore >> $resultsfile
     echo '--------------------------------------------' >> $resultsfile
-  done
-done
-
-
-
