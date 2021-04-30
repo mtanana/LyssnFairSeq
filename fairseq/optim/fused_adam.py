@@ -231,7 +231,7 @@ try:
                 loss = closure()
 
             for group in self.param_groups:
-                bias_correction = 1 if group['bias_correction'] else 0
+                bias_correction = 1 if 'bias_correction' in group else 0
                 beta1, beta2 = group['betas']
 
                 # assume same step across group now to simplify things

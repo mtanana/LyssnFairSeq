@@ -26,10 +26,10 @@ lexicon='/lyssn/datasets/asr/asraug2020fixedlength10/lexiconwpsych.txt'
 model='/lyssn/temp/asr/wav2vec/asraug20202.2/checkpoint_best.pt'
 #lmweight=.5
 #insscore=-.2
-beam=20
+beam=50
 resultsfile="results.txt"
 lmweight=1.25
-insscore=-.5
+insscore=0
 
 
     echo 'model ' $model

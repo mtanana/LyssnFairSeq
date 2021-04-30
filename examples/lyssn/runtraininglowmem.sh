@@ -1,5 +1,5 @@
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=0
 
 #for some reason I think this only uses the valid subset
 
@@ -12,7 +12,7 @@ python ../../train.py /lyssn/datasets/asr/asroct2020/ --save-dir /lyssn/temp/asr
 --feature-grad-mult 0.0 --freeze-finetune-updates 10000 --validate-after-updates 10000 --optimizer adam \
 --adam-betas '(0.9, 0.98)' --adam-eps 1e-08 --lr 1e-05 --lr-scheduler tri_stage --warmup-steps 8000 --hold-steps 100000 \
 --decay-steps 2000000 --final-lr-scale 0.05 --final-dropout 0.0 --dropout 0.0 --activation-dropout 0.1 --criterion ctc \
---attention-dropout 0.0  --max-tokens 2000000 --max-tokens-valid 3000000   --seed 2337 --log-format tqdm --log-interval 100 --ddp-backend no_c10d \
+--attention-dropout 0.0  --max-tokens 200000 --max-tokens-valid 300000   --seed 2337 --log-format tqdm --log-interval 100 --ddp-backend no_c10d \
 --tensorboard-logdir /lyssn/temp/asr/wav2vec/test2/tensorboardoct20202v1/test1/ \
 
 
