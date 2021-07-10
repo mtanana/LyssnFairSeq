@@ -1,0 +1,44 @@
+
+
+
+1.  Run the java dataset creation program
+
+    Export the runnable jar file with the ASR creation CMD as the entrypoint and run on a server.
+
+    Ideally you have a cache folder where all of the training data is cached in advance, otherwise it pulls from s3
+
+    The command might look something like this:
+
+    java -Dlog4j.configuration=file:log4j.properties -Xmx50G -jar buildasrdataset.jar /asrdata/allJuly2021_10s/ train dbhost.lyssn.int 5432 /asrdata/cache/lyssnwavcache/
+
+    then create the validation set, something like this:
+
+    java -Dlog4j.configuration=file:log4j.properties -Xmx50G -jar buildasrdataset.jar /asrdata/allJuly2021_10s/ valid dbhost.lyssn.int 5432 /asrdata/cache/lyssnwavcache/
+
+2.  go to the folder where the dataset was created and drop in
+    a) dict.ltr.txt with the letter dictionary for this task
+    b) downsamplewavs.sh
+    c) fixfilelength.py
+
+3.  Downsample the wav files to 16k mono
+
+    Run ./downsamplewavs.sh
+
+4.  Change the headers in the .tsv files to target the mon16k directory so it looks something like this:
+
+    /asrdata/allJuly2021_10s/wav/downsampledmono16k/
+
+    in both
+    train.tsv
+    and
+    valid.tsv
+
+
+
+
+
+
+
+
+
+
