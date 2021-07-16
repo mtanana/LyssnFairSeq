@@ -33,12 +33,93 @@
     and
     valid.tsv
 
+5.  Run fixfilelength.py
+    python fixfilelength.py train.tsv
+    python fixfilelength.py valid.tsv
+
+6.  Rename fixed filenames to original train.tsv and valid.tsv
 
 
 
 
 
+6.  Training command:  one example
+
+
+    aws ecr get-login-password --region us-west-2 | sudo docker login --username AWS --password-stdin 672844633551.dkr.ecr.us-west-2.amazonaws.com
+    #double check we have the newest image
+    docker pull 672844633551.dkr.ecr.us-west-2.amazonaws.com/lyssnmldev
+
+    lr=( 5e-05 5e-6 )
 
 
 
+    for l in "${lr[@]}"
+    do
+
+    echo $l
+
+    ID=$RANDOM
+
+    ASRCOMMAND="python /lyssn/code/prod/fairseq/train.py  /asrdata/allJuly2021_10s/ --save-dir /lyssn/temp/asr/wav2vec/allJuly2021_10s/$ID/ --fp16 \
+    --reset-dataloader \
+    --post-process letter --valid-subset valid  --no-epoch-checkpoints --best-checkpoint-metric wer --num-workers 45 \
+    --max-update 400000 --sentence-avg --task audio_pretraining --arch wav2vec_ctc --w2v-path /asrdata/wav2vec_vox.pt \
+    --labels ltr --apply-mask --mask-selection static --mask-other 0 --mask-length 10 --mask-prob 0.5 --layerdrop 0.1 \
+    --mask-channel-selection static --mask-channel-other 0 --mask-channel-length 64 --mask-channel-prob 0.5 --zero-infinity \
+    --feature-grad-mult 0.0 --freeze-finetune-updates 10000 --validate-after-updates 10000 --optimizer adam \
+    --adam-eps 1e-08 --lr $l  --lr-scheduler tri_stage --warmup-steps 8000 --hold-steps 100000 \
+    --decay-steps 2000000 --final-lr-scale 0.05 --final-dropout 0.0 --dropout 0.0 --activation-dropout 0.1 --criterion ctc \
+    --attention-dropout 0.0  --max-tokens 2000000 --max-tokens-valid 1000000   --seed 2337 --log-format tqdm --log-interval 100 --ddp-backend no_c10d \
+    --tensorboard-logdir /lyssn/temp/asr/wav2vec/tensorboardallJuly2021_10s/$ID/ "
+
+    echo $ASRCOMMAND
+
+    sudo nvidia-docker run -v /efs/lyssn/temp:/lyssn/temp \
+        -v /asrdata:/asrdata \
+        -v /efs/lyssn/models:/lyssn/models \
+        -v /efs/lyssn/datasets:/lyssn/datasets \
+        --ipc=host \
+        -t 672844633551.dkr.ecr.us-west-2.amazonaws.com/lyssnmldev $ASRCOMMAND
+
+    done
+
+
+7.  Build Language Model
+
+    One example
+
+
+    KENLM=/lyssn/code/mike/kenlm/build/bin
+    textloc=/lyssn/datasets/asr/asraug2020fixedlength10/train.wrd.txt
+
+    cat $textloc | ${KENLM}/lmplz -o 3 --prune 0 2 2  > /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.trigram.arpa
+    ${KENLM}/build_binary /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.trigram.arpa /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.trigram.bin
+    cat $textloc | ${KENLM}/lmplz -o 2 --prune 0 2   > /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.bigram.arpa
+    ${KENLM}/build_binary /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.bigram.arpa /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.bigram.bin
+    cat $textloc | ${KENLM}/lmplz -o 1   > /lyssn/datasets/asr/asraug2020fixedlength10/lyssn.unigram.arpa
+
+
+
+8.  Build lexicon
+
+    One example:
+
+    aws ecr get-login-password --region us-west-2 | sudo docker login --username AWS --password-stdin 672844633551.dkr.ecr.us-west-2.amazonaws.com
+    #double check we have the newest image
+    docker pull 672844633551.dkr.ecr.us-west-2.amazonaws.com/lyssnmldev
+
+
+
+
+    COMMAND="python /lyssn/code/prod/fairseq/examples/lyssn/createlexicon.py  /asrdata/allJuly2021_10s/train.wrd.txt /asrdata/allJuly2021_10s/lexicon.txt "
+
+    echo $COMMAND
+
+    sudo nvidia-docker run -v /efs/lyssn/temp:/lyssn/temp \
+        -v /asrdata:/asrdata \
+        -v /efs/lyssn/models:/lyssn/models \
+        -v /efs/lyssn/datasets:/lyssn/datasets \
+        --ipc=host \
+        -t 672844633551.dkr.ecr.us-west-2.amazonaws.com/lyssnmldev $COMMAND
 
