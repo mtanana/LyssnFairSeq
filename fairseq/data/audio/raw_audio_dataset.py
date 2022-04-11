@@ -4,15 +4,16 @@
 # LICENSE file in the root directory of this source tree.
 
 
-import os
 import logging
-import numpy as np
+import os
 import sys
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 from .. import FairseqDataset
+
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +73,7 @@ class RawAudioDataset(FairseqDataset):
         return wav[start:end]
 
     def collater(self, samples):
-        samples = [
-            s
-            for s in samples
-            if s["source"] is not None
-        ]
+        samples = [s for s in samples if s["source"] is not None]
         if len(samples) == 0:
             return {}
 
@@ -88,7 +85,7 @@ class RawAudioDataset(FairseqDataset):
         else:
             target_size = min(min(sizes), self.max_sample_size)
 
-        collated_sources = sources[0].new(len(sources), target_size)
+        collated_sources = sources[0].new_zeros(len(sources), target_size)
         padding_mask = (
             torch.BoolTensor(collated_sources.shape).fill_(False) if self.pad else None
         )

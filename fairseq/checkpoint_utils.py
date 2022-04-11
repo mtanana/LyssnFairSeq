@@ -32,7 +32,12 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss):
         best_function = max if args.maximize_best_checkpoint_metric else min
         save_checkpoint.best = best_function(val_loss, prev_best)
 
-    if args.no_save or not trainer.is_data_parallel_master:
+    if args.no_save:
+        return
+
+    trainer.consolidate_optimizer()
+
+    if not trainer.is_data_parallel_master:
         return
 
     def is_better(a, b):
@@ -62,12 +67,14 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss):
         or is_better(val_loss, save_checkpoint.best)
     )
     if val_loss is not None and args.keep_best_checkpoints > 0:
-        checkpoint_conds["checkpoint.best_{}_{:.2f}.pt".format(
-            args.best_checkpoint_metric, val_loss)] = (
-            not hasattr(save_checkpoint, "best")
-            or is_better(val_loss, save_checkpoint.best)
+        checkpoint_conds[
+            "checkpoint.best_{}_{:.2f}.pt".format(args.best_checkpoint_metric, val_loss)
+        ] = not hasattr(save_checkpoint, "best") or is_better(
+            val_loss, save_checkpoint.best
         )
-    checkpoint_conds["checkpoint_last{}.pt".format(suffix)] = not args.no_last_checkpoints
+    checkpoint_conds[
+        "checkpoint_last{}.pt".format(suffix)
+    ] = not args.no_last_checkpoints
 
     extra_state = {"train_iterator": epoch_itr.state_dict(), "val_loss": val_loss}
     if hasattr(save_checkpoint, "best"):
@@ -107,10 +114,14 @@ def save_checkpoint(args, trainer, epoch_itr, val_loss):
     if args.keep_best_checkpoints > 0:
         # only keep the best N checkpoints according to validation metric
         checkpoints = checkpoint_paths(
-            args.save_dir, pattern=r"checkpoint\.best_{}_(\d+\.?\d*)\.pt".format(args.best_checkpoint_metric))
+            args.save_dir,
+            pattern=r"checkpoint\.best_{}_(\d+\.?\d*)\.pt".format(
+                args.best_checkpoint_metric
+            ),
+        )
         if not args.maximize_best_checkpoint_metric:
             checkpoints = checkpoints[::-1]
-        for old_chk in checkpoints[args.keep_best_checkpoints:]:
+        for old_chk in checkpoints[args.keep_best_checkpoints :]:
             if os.path.lexists(old_chk):
                 os.remove(old_chk)
 
@@ -128,16 +139,23 @@ def load_checkpoint(args, trainer, **passthrough_args):
     reset_meters = args.reset_meters
     reset_dataloader = args.reset_dataloader
 
-    if getattr(args, 'finetune_from_model', None) is not None \
-       and (reset_optimizer or reset_lr_scheduler or reset_meters or reset_dataloader):
-        raise ValueError("--finetune-from-model can not be set together with either --reset-optimizer"
-                         " or reset_lr_scheduler or reset_meters or reset_dataloader")
+    if getattr(args, "finetune_from_model", None) is not None and (
+        reset_optimizer or reset_lr_scheduler or reset_meters or reset_dataloader
+    ):
+        raise ValueError(
+            "--finetune-from-model can not be set together with either --reset-optimizer"
+            " or reset_lr_scheduler or reset_meters or reset_dataloader"
+        )
 
     suffix = getattr(args, "checkpoint_suffix", "")
-    if args.restore_file == "checkpoint_last.pt":  # default value of restore_file is 'checkpoint_last.pt'
-        checkpoint_path = os.path.join(args.save_dir, "checkpoint_last{}.pt".format(suffix))
+    if (
+        args.restore_file == "checkpoint_last.pt"
+    ):  # default value of restore_file is 'checkpoint_last.pt'
+        checkpoint_path = os.path.join(
+            args.save_dir, "checkpoint_last{}.pt".format(suffix)
+        )
         first_launch = not PathManager.exists(checkpoint_path)
-        if getattr(args, 'finetune_from_model', None) is not None and first_launch:
+        if getattr(args, "finetune_from_model", None) is not None and first_launch:
             # if there is no last checkpoint to restore, start the finetune from pretrained model
             # else just use usual logic to load checkpoint, e.g. restart from last checkpoint and etc.
             if PathManager.exists(args.finetune_from_model):
@@ -146,19 +164,26 @@ def load_checkpoint(args, trainer, **passthrough_args):
                 reset_lr_scheduler = True
                 reset_meters = True
                 reset_dataloader = True
-                logger.info(f'loading pretrained model from {checkpoint_path}: '
-                            'optimizer, lr scheduler, meters, dataloader will be reset')
+                logger.info(
+                    f"loading pretrained model from {checkpoint_path}: "
+                    "optimizer, lr scheduler, meters, dataloader will be reset"
+                )
             else:
-                raise ValueError(f'--funetune-from-model {args.finetune_from_model} does not exist')
+                raise ValueError(
+                    f"--funetune-from-model {args.finetune_from_model} does not exist"
+                )
     elif getattr(args, "model_parallel_size", 1) > 1:
         checkpoint_path = args.restore_file.replace(".pt", suffix + ".pt")
     else:
         checkpoint_path = args.restore_file
 
-    if args.restore_file != "checkpoint_last.pt" and getattr(args, 'finetune_from_model', None):
+    if args.restore_file != "checkpoint_last.pt" and getattr(
+        args, "finetune_from_model", None
+    ):
         raise ValueError(
-            '--finetune-from-model and --restore-file (non-default value) '
-            'can not be specified together: ' + str(args))
+            "--finetune-from-model and --restore-file (non-default value) "
+            "can not be specified together: " + str(args)
+        )
 
     extra_state = trainer.load_checkpoint(
         checkpoint_path,
@@ -195,7 +220,7 @@ def load_checkpoint(args, trainer, **passthrough_args):
 
 def load_checkpoint_to_cpu(path, arg_overrides=None):
     """Loads a checkpoint to CPU (with upgrading for backward compatibility)."""
-    with PathManager.open(path, "rb") as f:
+    with open(PathManager.get_local_path(path), "rb") as f:
         state = torch.load(
             f, map_location=lambda s, l: default_restore_location(s, "cpu")
         )
@@ -208,7 +233,9 @@ def load_checkpoint_to_cpu(path, arg_overrides=None):
     return state
 
 
-def load_model_ensemble(filenames, arg_overrides=None, task=None, strict=True, suffix=''):
+def load_model_ensemble(
+    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1
+):
     """Loads an ensemble of models.
 
     Args:
@@ -217,29 +244,47 @@ def load_model_ensemble(filenames, arg_overrides=None, task=None, strict=True, s
             were used during model training
         task (fairseq.tasks.FairseqTask, optional): task to use for loading
     """
+    assert not (
+        strict and num_shards > 1
+    ), "Cannot load state dict with strict=True and checkpoint shards > 1"
     ensemble, args, _task = load_model_ensemble_and_task(
-        filenames, arg_overrides, task, strict, suffix,
+        filenames,
+        arg_overrides,
+        task,
+        strict,
+        suffix,
+        num_shards,
     )
     return ensemble, args
 
 
-def load_model_ensemble_and_task(filenames, arg_overrides=None, task=None, strict=True, suffix=''):
+def load_model_ensemble_and_task(
+    filenames, arg_overrides=None, task=None, strict=True, suffix="", num_shards=1
+):
     from fairseq import tasks
 
+    assert not (
+        strict and num_shards > 1
+    ), "Cannot load state dict with strict=True and checkpoint shards > 1"
     ensemble = []
     for filename in filenames:
-        filename = filename.replace(".pt", suffix + ".pt")
-        if not PathManager.exists(filename):
-            raise IOError("Model file not found: {}".format(filename))
-        state = load_checkpoint_to_cpu(filename, arg_overrides)
+        orig_filename = filename
+        for shard_idx in range(num_shards):
+            if num_shards == 1:
+                filename = filename.replace(".pt", suffix + ".pt")
+            else:
+                filename = orig_filename[:-3] + f"_part{shard_idx}.pt"
+            if not PathManager.exists(filename):
+                raise IOError("Model file not found: {}".format(filename))
+            state = load_checkpoint_to_cpu(filename, arg_overrides)
+            if shard_idx == 0:
+                args = state["args"]
+                if task is None:
+                    task = tasks.setup_task(args)
 
-        args = state["args"]
-        if task is None:
-            task = tasks.setup_task(args)
-
-        # build model for ensemble
-        model = task.build_model(args)
-        model.load_state_dict(state["model"], strict=strict, args=args)
+                # build model for ensemble
+                model = task.build_model(args)
+            model.load_state_dict(state["model"], strict=strict, args=args)
         ensemble.append(model)
     return ensemble, args, task
 
@@ -520,7 +565,9 @@ def verify_checkpoint_directory(save_dir: str) -> None:
         with open(temp_file_path, "w"):
             pass
     except OSError as e:
-        logger.warning("Unable to access checkpoint save directory: {}".format(save_dir))
+        logger.warning(
+            "Unable to access checkpoint save directory: {}".format(save_dir)
+        )
         raise e
     else:
         os.remove(temp_file_path)

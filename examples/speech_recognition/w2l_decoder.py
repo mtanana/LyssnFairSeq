@@ -9,16 +9,18 @@
 Wav2letter decoders.
 """
 
-from collections import namedtuple, deque
 import gc
 import itertools as it
-import numpy as np
-import torch
 import os.path as osp
 import warnings
+from collections import deque, namedtuple
+
+import numpy as np
+import torch
+from examples.speech_recognition.data.replabels import unpack_replabels
 from fairseq import tasks
 from fairseq.utils import apply_to_sample
-from examples.speech_recognition.data.replabels import unpack_replabels
+
 
 try:
     from wav2letter.common import create_word_dict, load_words
@@ -66,7 +68,7 @@ class W2lDecoder(object):
         else:
             raise RuntimeError(f"unknown criterion: {args.criterion}")
 
-    def generate(self, models, sample, prefix_tokens=None):
+    def generate(self, models, sample, **unused):
         """Generate a batch of inferences."""
         # model.forward normally channels prev_output_tokens into the decoder
         # separately, but SequenceGenerator directly calls model.encoder

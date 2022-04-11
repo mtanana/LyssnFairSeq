@@ -10,6 +10,7 @@ Train a new model on one or across multiple GPUs.
 import argparse
 import logging
 import math
+import os
 import random
 import sys
 
@@ -32,7 +33,7 @@ from fairseq.trainer import Trainer
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
+    level=os.environ.get("LOGLEVEL", "INFO").upper(),
     stream=sys.stdout,
 )
 logger = logging.getLogger("fairseq_cli.train")
@@ -42,8 +43,8 @@ def main(args):
     utils.import_user_module(args)
 
     assert (
-        args.max_tokens is not None or args.max_sentences is not None
-    ), "Must specify batch size either with --max-tokens or --max-sentences"
+        args.max_tokens is not None or args.batch_size is not None
+    ), "Must specify batch size either with --max-tokens or --batch-size"
 
     metrics.reset()
 
@@ -100,13 +101,18 @@ def main(args):
     )
     logger.info(
         "max tokens per GPU = {} and max sentences per GPU = {}".format(
-            args.max_tokens, args.max_sentences
+            args.max_tokens, args.batch_size
         )
     )
 
     # Load the latest checkpoint if one is available and restore the
     # corresponding train iterator
-    extra_state, epoch_itr = checkpoint_utils.load_checkpoint(args, trainer)
+    extra_state, epoch_itr = checkpoint_utils.load_checkpoint(
+        args,
+        trainer,
+        # don't cache epoch iterators for sharded datasets
+        disable_iterator_cache=task.has_sharded_data("train"),
+    )
 
     # Train until the learning rate gets too small
     max_epoch = args.max_epoch or math.inf
@@ -127,6 +133,8 @@ def main(args):
             epoch_itr.next_epoch_idx,
             # sharded data: get train iterator for next epoch
             load_dataset=task.has_sharded_data("train"),
+            # don't cache epoch iterators for sharded datasets
+            disable_iterator_cache=task.has_sharded_data("train"),
         )
     train_meter.stop()
     logger.info("done training in {:.1f} seconds".format(train_meter.sum))
@@ -189,6 +197,7 @@ def train(args, trainer, task, epoch_itr):
 
     trainer.begin_epoch(epoch_itr.epoch)
 
+    valid_losses = [None]
     valid_subsets = args.valid_subset.split(",")
     should_stop = False
     num_updates = trainer.get_num_updates()
@@ -230,16 +239,26 @@ def train(args, trainer, task, epoch_itr):
 
 def validate_and_save(args, trainer, task, epoch_itr, valid_subsets, end_of_epoch):
     num_updates = trainer.get_num_updates()
+    max_update = args.max_update or math.inf
     do_save = (
-        args.save_interval_updates > 0
-        and num_updates > 0
-        and num_updates % args.save_interval_updates == 0
-        and num_updates >= args.validate_after_updates
-    ) or (end_of_epoch and epoch_itr.epoch % args.save_interval == 0)
+        (end_of_epoch and epoch_itr.epoch % args.save_interval == 0)
+        or num_updates >= max_update
+        or (
+            args.save_interval_updates > 0
+            and num_updates > 0
+            and num_updates % args.save_interval_updates == 0
+            and num_updates >= args.validate_after_updates
+        )
+    )
     do_validate = (
         (not end_of_epoch and do_save)  # validate during mid-epoch saves
         or (end_of_epoch and epoch_itr.epoch % args.validate_interval == 0)
-        or (args.validate_interval_updates > 0 and num_updates % args.validate_interval_updates == 0)
+        or num_updates >= max_update
+        or (
+            args.validate_interval_updates > 0
+            and num_updates > 0
+            and num_updates % args.validate_interval_updates == 0
+        )
     ) and not args.disable_validation
 
     # Validate
@@ -248,10 +267,9 @@ def validate_and_save(args, trainer, task, epoch_itr, valid_subsets, end_of_epoc
         valid_losses = validate(args, trainer, task, epoch_itr, valid_subsets)
 
     # Stopping conditions
-    max_update = args.max_update or math.inf
     should_stop = (
         should_stop_early(args, valid_losses[0])
-        or trainer.get_num_updates() >= max_update
+        or num_updates >= max_update
         or (
             args.stop_time_hours > 0
             and trainer.cumulative_training_time() / (60 * 60) > args.stop_time_hours
@@ -278,6 +296,7 @@ def validate(args, trainer, task, epoch_itr, subsets):
         # set fixed seed for every validation
         utils.set_torch_seed(args.fixed_validation_seed)
 
+    trainer.begin_valid_epoch(epoch_itr.epoch)
     valid_losses = []
     for subset in subsets:
         logger.info('begin validation on "{}" subset'.format(subset))

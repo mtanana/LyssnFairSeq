@@ -32,6 +32,7 @@ We provide reference implementations of various sequence modeling papers:
   - [Scaling Neural Machine Translation (Ott et al., 2018)](examples/scaling_nmt/README.md)
   - [Understanding Back-Translation at Scale (Edunov et al., 2018)](examples/backtranslation/README.md)
   - [Adaptive Input Representations for Neural Language Modeling (Baevski and Auli, 2018)](examples/language_model/transformer_lm/README.md)
+  - [Lexically constrained decoding with dynamic beam allocation (Post & Vilar, 2018)](examples/constrained_decoding/README.md)
   - [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](examples/translation_moe/README.md)
   - [RoBERTa: A Robustly Optimized BERT Pretraining Approach (Liu et al., 2019)](examples/roberta/README.md)
   - [Facebook FAIR's WMT19 News Translation Task Submission (Ng et al., 2019)](examples/wmt19/README.md)
@@ -40,17 +41,29 @@ We provide reference implementations of various sequence modeling papers:
   - [Neural Machine Translation with Byte-Level Subwords (Wang et al., 2020)](examples/byte_level_bpe/README.md)
   - [Unsupervised Quality Estimation for Neural Machine Translation (Fomicheva et al., 2020)](examples/unsupervised_quality_estimation/README.md)
   - [wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations (Baevski et al., 2020)](examples/wav2vec/README.md)
+  - [Generating Medical Reports from Patient-Doctor Conversations Using Sequence-to-Sequence Models (Enarvi et al., 2020)](examples/pointer_generator/README.md)
+  - [Linformer: Self-Attention with Linear Complexity (Wang et al., 2020)](examples/linformer/README.md)
+  - [Cross-lingual Retrieval for Iterative Self-Supervised Training (Tran et al., 2020)](examples/criss/README.md)
+  - [Deep Transformers with Latent Depth (Li et al., 2020)](examples/latent_depth/README.md)
 - **Non-autoregressive Transformers**
   - Non-Autoregressive Neural Machine Translation (Gu et al., 2017)
   - Deterministic Non-Autoregressive Neural Sequence Modeling by Iterative Refinement (Lee et al. 2018)
   - Insertion Transformer: Flexible Sequence Generation via Insertion Operations (Stern et al. 2019)
   - Mask-Predict: Parallel Decoding of Conditional Masked Language Models (Ghazvininejad et al., 2019)
   - [Levenshtein Transformer (Gu et al., 2019)](examples/nonautoregressive_translation/README.md)
+- **Finetuning**
+  - [Better Fine-Tuning by Reducing Representational Collapse (Aghajanyan et al. 2020)](examples/rxf/README.md)
 
 </p></details>
 
 ### What's New:
 
+- October 2020: [Added R3F/R4F (Better Fine-Tuning) code](examples/rxf/README.md)
+- October 2020: [Deep Transformer with Latent Depth code released](examples/latent_depth/README.md)
+- October 2020: [Added CRISS models and code](examples/criss/README.md)
+- September 2020: [Added Linformer code](examples/linformer/README.md)
+- September 2020: [Added pointer-generator networks](examples/pointer_generator/README.md)
+- August 2020: [Added lexically constrained decoding](examples/constrained_decoding/README.md)
 - August 2020: [wav2vec2 models and code released](examples/wav2vec/README.md)
 - July 2020: [Unsupervised Quality Estimation code released](examples/unsupervised_quality_estimation/README.md)
 - May 2020: [Follow fairseq on Twitter](https://twitter.com/fairseq)
@@ -82,6 +95,7 @@ We provide reference implementations of various sequence modeling papers:
   - beam search
   - Diverse Beam Search ([Vijayakumar et al., 2016](https://arxiv.org/abs/1610.02424))
   - sampling (unconstrained, top-k and top-p/nucleus)
+  - lexically constrained decoding ([Post & Vilar, 2018](examples/constrained_decoding/README.md))
 - large mini-batch training even on a single GPU via delayed updates
 - mixed precision training (trains faster with less GPU memory on [NVIDIA tensor cores](https://developer.nvidia.com/tensor-cores))
 - extensible: easily register new models, criterions, tasks, optimizers and learning rate schedulers
@@ -98,7 +112,7 @@ and [RoBERTa](https://pytorch.org/hub/pytorch_fairseq_roberta/) for more example
 
 # Requirements and Installation
 
-* [PyTorch](http://pytorch.org/) version >= 1.4.0
+* [PyTorch](http://pytorch.org/) version >= 1.5.0
 * Python version >= 3.6
 * For training new models, you'll also need an NVIDIA GPU and [NCCL](https://github.com/NVIDIA/nccl)
 * **To install fairseq** and develop locally:
@@ -138,6 +152,7 @@ as well as example training and evaluation commands.
 - [Language Modeling](examples/language_model/README.md): convolutional and transformer models are available
 
 We also have more detailed READMEs to reproduce results from specific papers:
+- [Cross-lingual Retrieval for Iterative Self-Supervised Training (Tran et al., 2020)](examples/criss/README.md)
 - [wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations (Baevski et al., 2020)](examples/wav2vec/README.md)
 - [Unsupervised Quality Estimation for Neural Machine Translation (Fomicheva et al., 2020)](examples/unsupervised_quality_estimation/README.md)
 - [Training with Quantization Noise for Extreme Model Compression ({Fan*, Stock*} et al., 2020)](examples/quant_noise/README.md)

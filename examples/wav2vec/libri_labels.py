@@ -24,16 +24,16 @@ def main():
     transcriptions = {}
 
     with open(args.tsv, "r") as tsv, open(
-        os.path.join(args.output_dir, args.output_name + ".ltr.txt"), "w"
+        os.path.join(args.output_dir, args.output_name + ".ltr"), "w"
     ) as ltr_out, open(
-        os.path.join(args.output_dir, args.output_name + ".wrd.txt"), "w"
+        os.path.join(args.output_dir, args.output_name + ".wrd"), "w"
     ) as wrd_out:
         root = next(tsv).strip()
         for line in tsv:
             line = line.strip()
             dir = os.path.dirname(line)
             if dir not in transcriptions:
-                parts = dir.split("/")
+                parts = dir.split(os.path.sep)
                 trans_path = f"{parts[-2]}-{parts[-1]}.trans.txt"
                 path = os.path.join(root, dir, trans_path)
                 assert os.path.exists(path)
