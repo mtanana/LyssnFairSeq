@@ -818,11 +818,13 @@ class TransformerEncoder(nn.Module):
     def extract_features(self, x, padding_mask=None):
 
         if padding_mask is not None:
-            x[padding_mask] = 0
+            #x[padding_mask] = 0
+            x = x.masked_fill_(padding_mask.unsqueeze(dim=2),0)
+
 
         x_conv = self.pos_conv(x.transpose(1, 2))
         x_conv = x_conv.transpose(1, 2)
-        x += x_conv
+        x = x + x_conv
 
         if not self.layer_norm_first:
             x = self.layer_norm(x)
