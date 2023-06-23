@@ -470,7 +470,8 @@ class Wav2Vec2Model(BaseFairseqModel):
                     mask_dropout=self.cfg.mask_dropout,
                 )
                 mask_indices = torch.from_numpy(mask_indices).to(x.device)
-            x = index_put(x, mask_indices, self.mask_emb)
+            cast_emb = self.mask_emb.to(x.dtype) #mike addition.  these need to match
+            x = index_put(x, mask_indices, cast_emb)
         else:
             mask_indices = None
 
