@@ -146,7 +146,7 @@ class AudioFinetuningTask(AudioPretrainingTask):
         )
         data_path = self.cfg.data
         if task_cfg.multi_corpus_keys is None:
-            label_path = os.path.join(data_path, f"{split}.{task_cfg.labels}")
+            label_path = os.path.join(data_path, f"{split}.{task_cfg.labels}.txt")
             skipped_indices = getattr(self.datasets[split], "skipped_indices", set())
             text_compressor = TextCompressor(level=text_compression_level)
             with open(label_path, "r") as f:
