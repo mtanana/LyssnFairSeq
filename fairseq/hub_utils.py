@@ -8,13 +8,14 @@ import argparse
 import copy
 import logging
 import os
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List
 
 import torch
-from fairseq import utils
-from fairseq.data import encoders
+from omegaconf import open_dict
 from torch import nn
 
+from fairseq import utils
+from fairseq.data import encoders
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,8 @@ def from_pretrained(
         "code": "bpe_codes",
         "bpecodes": "bpe_codes",
         "sentencepiece.bpe.model": "sentencepiece_model",
+        "merges.txt": "bpe_merges",
+        "vocab.json": "bpe_vocab",
     }.items():
         path = os.path.join(model_path, file)
         if os.path.exists(path):
@@ -67,10 +70,22 @@ def from_pretrained(
     if "user_dir" in kwargs:
         utils.import_user_module(argparse.Namespace(user_dir=kwargs["user_dir"]))
 
-    models, args, task = checkpoint_utils.load_model_ensemble_and_task(
-        [os.path.join(model_path, cpt) for cpt in checkpoint_file.split(os.pathsep)],
-        arg_overrides=kwargs,
-    )
+    model_path = [
+        os.path.join(model_path, cpt) for cpt in checkpoint_file.split(os.pathsep)
+    ]
+
+    if "is_vocoder" in kwargs:
+        args = {"data": kwargs["data"], "model_path": model_path}
+        task = None
+        models = None
+    else:
+        models, args, task = checkpoint_utils.load_model_ensemble_and_task(
+            model_path,
+            arg_overrides=kwargs,
+        )
+    if "generation_args" in kwargs and kwargs["generation_args"]:
+        for key in kwargs["generation_args"]:
+            setattr(args["generation"], key, kwargs["generation_args"][key])
 
     return {
         "args": args,
@@ -85,9 +100,9 @@ class GeneratorHubInterface(nn.Module):
     translation or language model.
     """
 
-    def __init__(self, args, task, models):
+    def __init__(self, cfg, task, models):
         super().__init__()
-        self.args = args
+        self.cfg = cfg
         self.task = task
         self.models = nn.ModuleList(models)
         self.src_dict = task.source_dictionary
@@ -95,14 +110,14 @@ class GeneratorHubInterface(nn.Module):
 
         # optimize model for generation
         for model in self.models:
-            model.prepare_for_inference_(args)
+            model.prepare_for_inference_(cfg)
 
         # Load alignment dictionary for unknown word replacement
         # (None if no unknown word replacement, empty if no path to align dictionary)
-        self.align_dict = utils.load_align_dict(getattr(args, "replace_unk", None))
+        self.align_dict = utils.load_align_dict(cfg.generation.replace_unk)
 
-        self.tokenizer = encoders.build_tokenizer(args)
-        self.bpe = encoders.build_bpe(args)
+        self.tokenizer = encoders.build_tokenizer(cfg.tokenizer)
+        self.bpe = encoders.build_bpe(cfg.bpe)
 
         self.max_positions = utils.resolve_max_positions(
             self.task.max_positions(), *[model.max_positions() for model in models]
@@ -129,11 +144,22 @@ class GeneratorHubInterface(nn.Module):
         batched_hypos = self.generate(tokenized_sentences, beam, verbose, **kwargs)
         return [self.decode(hypos[0]["tokens"]) for hypos in batched_hypos]
 
-    def score(self, sentences: List[str], **kwargs):
+    def score(
+        self, sentences: List[str], replace_newline_with_eos: bool = False, **kwargs
+    ):
         if isinstance(sentences, str):
-            return self.score([sentences], **kwargs)[0]
+            return self.score(
+                [sentences], replace_newline_with_eos=replace_newline_with_eos, **kwargs
+            )[0]
+
+        def encode(sentence):
+            if replace_newline_with_eos:
+                return torch.cat([self.encode(line) for line in sentence.splitlines()])
+            else:
+                return self.encode(sentence)
+
         # NOTE: this doesn't support translation tasks currently
-        tokenized_sentences = [self.encode(sentence) for sentence in sentences]
+        tokenized_sentences = [encode(sentence) for sentence in sentences]
         return [
             hypos[0]
             for hypos in self.generate(
@@ -148,6 +174,7 @@ class GeneratorHubInterface(nn.Module):
         verbose: bool = False,
         skip_invalid_size_inputs=False,
         inference_step_args=None,
+        prefix_allowed_tokens_fn=None,
         **kwargs
     ) -> List[List[Dict[str, torch.Tensor]]]:
         if torch.is_tensor(tokenized_sentences) and tokenized_sentences.dim() == 1:
@@ -156,11 +183,16 @@ class GeneratorHubInterface(nn.Module):
             )[0]
 
         # build generator using current args as well as any kwargs
-        gen_args = copy.copy(self.args)
-        gen_args.beam = beam
-        for k, v in kwargs.items():
-            setattr(gen_args, k, v)
-        generator = self.task.build_generator(self.models, gen_args)
+        gen_args = copy.deepcopy(self.cfg.generation)
+        with open_dict(gen_args):
+            gen_args.beam = beam
+            for k, v in kwargs.items():
+                setattr(gen_args, k, v)
+        generator = self.task.build_generator(
+            self.models,
+            gen_args,
+            prefix_allowed_tokens_fn=prefix_allowed_tokens_fn,
+        )
 
         inference_step_args = inference_step_args or {}
         results = []
@@ -178,7 +210,7 @@ class GeneratorHubInterface(nn.Module):
         if verbose:
 
             def getarg(name, default):
-                return getattr(gen_args, name, getattr(self.args, name, default))
+                return getattr(gen_args, name, getattr(self.cfg, name, default))
 
             for source_tokens, target_hypotheses in zip(tokenized_sentences, outputs):
                 src_str_with_unk = self.string(source_tokens)
@@ -253,8 +285,8 @@ class GeneratorHubInterface(nn.Module):
         lengths = torch.LongTensor([t.numel() for t in tokens])
         batch_iterator = self.task.get_batch_iterator(
             dataset=self.task.build_dataset_for_inference(tokens, lengths),
-            max_tokens=self.args.max_tokens,
-            max_sentences=self.args.batch_size,
+            max_tokens=self.cfg.dataset.max_tokens,
+            max_sentences=self.cfg.dataset.batch_size,
             max_positions=self.max_positions,
             ignore_invalid_inputs=skip_invalid_size_inputs,
             disable_iterator_cache=True,

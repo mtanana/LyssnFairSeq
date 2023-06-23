@@ -7,9 +7,11 @@ import contextlib
 import logging
 import os
 from collections import OrderedDict
+from argparse import ArgumentError
 
 import torch
-from fairseq import metrics, options, utils
+from fairseq import options, utils
+from fairseq.logging import metrics
 from fairseq.data import (
     Dictionary,
     LanguagePairDataset,
@@ -77,10 +79,14 @@ class MultilingualTranslationTask(LegacyFairseqTask):
                             help='pad the source on the left (default: True)')
         parser.add_argument('--left-pad-target', default='False', type=str, metavar='BOOL',
                             help='pad the target on the left (default: False)')
-        parser.add_argument('--max-source-positions', default=1024, type=int, metavar='N',
-                            help='max number of tokens in the source sequence')
-        parser.add_argument('--max-target-positions', default=1024, type=int, metavar='N',
-                            help='max number of tokens in the target sequence')
+        try:
+            parser.add_argument('--max-source-positions', default=1024, type=int, metavar='N',
+                                help='max number of tokens in the source sequence')
+            parser.add_argument('--max-target-positions', default=1024, type=int, metavar='N',
+                                help='max number of tokens in the target sequence')
+        except ArgumentError:
+            # this might have already been defined. Once we transition this to hydra it should be fine to add it here.
+            pass
         parser.add_argument('--upsample-primary', default=1, type=int,
                             help='amount to upsample primary dataset')
         parser.add_argument('--encoder-langtok', default=None, type=str, choices=['src', 'tgt'],
@@ -117,7 +123,7 @@ class MultilingualTranslationTask(LegacyFairseqTask):
         return cls(args, dicts, training)
 
     @classmethod
-    def prepare(cls, args, **kargs):
+    def update_args(cls, args):
         args.left_pad_source = utils.eval_bool(args.left_pad_source)
         args.left_pad_target = utils.eval_bool(args.left_pad_target)
 
@@ -127,6 +133,10 @@ class MultilingualTranslationTask(LegacyFairseqTask):
             )
         if isinstance(args.lang_pairs, str):
             args.lang_pairs = args.lang_pairs.split(",")
+
+    @classmethod
+    def prepare(cls, args, **kargs):
+        cls.update_args(args)
         sorted_langs = sorted(
             list({x for lang_pair in args.lang_pairs for x in lang_pair.split("-")})
         )
@@ -272,7 +282,7 @@ class MultilingualTranslationTask(LegacyFairseqTask):
             eval_key=lang_pair,
         )
 
-    def build_model(self, args):
+    def build_model(self, args, from_checkpoint=False):
         def check_args():
             messages = []
             if (
@@ -298,12 +308,16 @@ class MultilingualTranslationTask(LegacyFairseqTask):
             if len(messages) > 0:
                 raise ValueError(" ".join(messages))
 
+        # Update args -> the fact that the constructor here
+        # changes the args object doesn't mean you get the same one here
+        self.update_args(args)
+
         # Check if task args are consistant with model args
         check_args()
 
         from fairseq import models
 
-        model = models.build_model(args, self)
+        model = models.build_model(args, self, from_checkpoint)
         if not isinstance(model, FairseqMultiModel):
             raise ValueError(
                 "MultilingualTranslationTask requires a FairseqMultiModel architecture"

@@ -21,6 +21,7 @@ from fairseq.modules import (
     TransformerSentenceEncoder,
 )
 from fairseq.modules.transformer_sentence_encoder import init_bert_params
+from fairseq.utils import safe_hasattr
 
 
 logger = logging.getLogger(__name__)
@@ -158,7 +159,7 @@ class MaskedLMModel(FairseqEncoderModel):
         # make sure all arguments are present in older models
         base_architecture(args)
 
-        if not hasattr(args, "max_positions"):
+        if not safe_hasattr(args, "max_positions"):
             args.max_positions = args.tokens_per_sample
 
         logger.info(args)
@@ -293,12 +294,6 @@ class MaskedLMEncoder(FairseqEncoder):
         return self.max_positions
 
     def upgrade_state_dict_named(self, state_dict, name):
-        if isinstance(
-            self.sentence_encoder.embed_positions, SinusoidalPositionalEmbedding
-        ):
-            state_dict[
-                name + ".sentence_encoder.embed_positions._float_tensor"
-            ] = torch.FloatTensor(1)
         if not self.load_softmax:
             for k in list(state_dict.keys()):
                 if (

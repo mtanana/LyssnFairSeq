@@ -7,7 +7,8 @@ import math
 from dataclasses import dataclass
 
 import torch.nn.functional as F
-from fairseq import metrics, utils
+from fairseq import utils
+from fairseq.logging import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
 from fairseq.dataclass.constants import DDP_BACKEND_CHOICES
@@ -16,8 +17,8 @@ from omegaconf import II
 
 @dataclass
 class AdaptiveLossConfig(FairseqDataclass):
-    sentence_avg: bool = II("params.optimization.sentence_avg")
-    ddp_backend: DDP_BACKEND_CHOICES = II("params.distributed_training.ddp_backend")
+    sentence_avg: bool = II("optimization.sentence_avg")
+    ddp_backend: DDP_BACKEND_CHOICES = II("distributed_training.ddp_backend")
 
 
 @register_criterion("adaptive_loss", dataclass=AdaptiveLossConfig)
@@ -31,14 +32,14 @@ class AdaptiveLoss(FairseqCriterion):
         self.sentence_avg = sentence_avg
 
     @classmethod
-    def build_criterion(cls, args, task):
-        if getattr(args, "ddp_backend", None) == "c10d":
+    def build_criterion(cls, cfg: AdaptiveLossConfig, task):
+        if cfg.ddp_backend in {"c10d", "pytorch_ddp"}:
             raise Exception(
-                "AdaptiveLoss is not compatible with the c10d "
+                "AdaptiveLoss is not compatible with the PyTorch "
                 "version of DistributedDataParallel. Please use "
-                "`--ddp-backend=no_c10d` instead."
+                "`--ddp-backend=legacy_ddp` instead."
             )
-        return cls(task, args.sentence_avg)
+        return cls(task, cfg.sentence_avg)
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.

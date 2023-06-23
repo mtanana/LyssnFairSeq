@@ -8,7 +8,6 @@ import time
 from collections import OrderedDict
 from typing import Dict, Optional
 
-
 try:
     import torch
 
@@ -17,7 +16,6 @@ try:
             return a.to(b)
         else:
             return a
-
 
 except ImportError:
     torch = None
@@ -107,6 +105,68 @@ class AverageMeter(Meter):
         if self.round is not None and val is not None:
             val = safe_round(val, self.round)
         return val
+
+
+class SumMeter(Meter):
+    """Computes and stores the sum"""
+
+    def __init__(self, round: Optional[int] = None):
+        self.round = round
+        self.reset()
+
+    def reset(self):
+        self.sum = 0  # sum from all updates
+
+    def update(self, val):
+        if val is not None:
+            self.sum = type_as(self.sum, val) + val
+
+    def state_dict(self):
+        return {
+            "sum": self.sum,
+            "round": self.round,
+        }
+
+    def load_state_dict(self, state_dict):
+        self.sum = state_dict["sum"]
+        self.round = state_dict.get("round", None)
+
+    @property
+    def smoothed_value(self) -> float:
+        val = self.sum
+        if self.round is not None and val is not None:
+            val = safe_round(val, self.round)
+        return val
+
+
+class ConcatTensorMeter(Meter):
+    """Concatenates tensors"""
+
+    def __init__(self, dim=0):
+        super().__init__()
+        self.reset()
+        self.dim = dim
+
+    def reset(self):
+        self.tensor = None
+
+    def update(self, val):
+        if self.tensor is None:
+            self.tensor = val
+        else:
+            self.tensor = torch.cat([self.tensor, val], dim=self.dim)
+
+    def state_dict(self):
+        return {
+            "tensor": self.tensor,
+        }
+
+    def load_state_dict(self, state_dict):
+        self.tensor = state_dict["tensor"]
+
+    @property
+    def smoothed_value(self) -> float:
+        return []  # return a dummy value
 
 
 class TimeMeter(Meter):

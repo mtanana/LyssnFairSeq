@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from fairseq import checkpoint_utils, options, progress_bar, tasks, utils
 from fairseq.sequence_generator import EnsembleModel
+from fairseq.utils import safe_hasattr
 
 
 def get_avg_pool(
@@ -109,9 +110,9 @@ def main(args):
     shard_id = 0
     all_avg_pool = None
     encoder_has_langtok = (
-        hasattr(task.args, "encoder_langtok")
+        safe_hasattr(task.args, "encoder_langtok")
         and task.args.encoder_langtok is not None
-        and hasattr(task.args, "lang_tok_replacing_bos_eos")
+        and safe_hasattr(task.args, "lang_tok_replacing_bos_eos")
         and not task.args.lang_tok_replacing_bos_eos
     )
     with progress_bar.build_progress_bar(args, itr) as t:
@@ -133,7 +134,7 @@ def main(args):
                     sample,
                     prefix_tokens,
                     src_dict,
-                    args.remove_bpe,
+                    args.post_process,
                     has_langtok=encoder_has_langtok,
                 )
                 if all_avg_pool is not None:
@@ -158,7 +159,7 @@ def main(args):
                     )
                 else:
                     if src_dict is not None:
-                        src_str = src_dict.string(src_tokens, args.remove_bpe)
+                        src_str = src_dict.string(src_tokens, args.post_process)
                     else:
                         src_str = ""
 

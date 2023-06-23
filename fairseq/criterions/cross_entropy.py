@@ -7,7 +7,8 @@ import math
 from dataclasses import dataclass
 
 import torch.nn.functional as F
-from fairseq import metrics, utils
+from fairseq import utils
+from fairseq.logging import metrics
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
 from omegaconf import II
@@ -15,7 +16,7 @@ from omegaconf import II
 
 @dataclass
 class CrossEntropyCriterionConfig(FairseqDataclass):
-    sentence_avg: bool = II("params.optimization.sentence_avg")
+    sentence_avg: bool = II("optimization.sentence_avg")
 
 
 @register_criterion("cross_entropy", dataclass=CrossEntropyCriterionConfig)

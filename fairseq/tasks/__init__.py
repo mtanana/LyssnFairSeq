@@ -7,11 +7,10 @@
 import argparse
 import importlib
 import os
-from argparse import Namespace
-from typing import Union
 
 from fairseq.dataclass import FairseqDataclass
-from omegaconf import DictConfig
+from fairseq.dataclass.utils import merge_with_parent
+from hydra.core.config_store import ConfigStore
 
 from .fairseq_task import FairseqTask, LegacyFairseqTask  # noqa
 
@@ -22,10 +21,30 @@ TASK_REGISTRY = {}
 TASK_CLASS_NAMES = set()
 
 
-def setup_task(task_cfg: Union[DictConfig, Namespace], **kwargs):
-    if isinstance(task_cfg, DictConfig):
-        return TASK_REGISTRY[task_cfg._name].setup_task(task_cfg, **kwargs)
-    return TASK_REGISTRY[task_cfg.task].setup_task(task_cfg, **kwargs)
+def setup_task(cfg: FairseqDataclass, **kwargs):
+    task = None
+    task_name = getattr(cfg, "task", None)
+
+    if isinstance(task_name, str):
+        # legacy tasks
+        task = TASK_REGISTRY[task_name]
+        if task_name in TASK_DATACLASS_REGISTRY:
+            dc = TASK_DATACLASS_REGISTRY[task_name]
+            cfg = dc.from_namespace(cfg)
+    else:
+        task_name = getattr(cfg, "_name", None)
+
+        if task_name and task_name in TASK_DATACLASS_REGISTRY:
+            remove_missing = "from_checkpoint" in kwargs and kwargs["from_checkpoint"]
+            dc = TASK_DATACLASS_REGISTRY[task_name]
+            cfg = merge_with_parent(dc(), cfg, remove_missing=remove_missing)
+            task = TASK_REGISTRY[task_name]
+
+    assert (
+        task is not None
+    ), f"Could not infer task type from {cfg}. Available argparse tasks: {TASK_REGISTRY.keys()}. Available hydra tasks: {TASK_DATACLASS_REGISTRY.keys()}"
+
+    return task.setup_task(cfg, **kwargs)
 
 
 def register_task(name, dataclass=None):
@@ -50,7 +69,8 @@ def register_task(name, dataclass=None):
 
     def register_task_cls(cls):
         if name in TASK_REGISTRY:
-            raise ValueError("Cannot register duplicate task ({})".format(name))
+            return TASK_REGISTRY[name]
+
         if not issubclass(cls, FairseqTask):
             raise ValueError(
                 "Task ({}: {}) must extend FairseqTask".format(name, cls.__name__)
@@ -70,7 +90,13 @@ def register_task(name, dataclass=None):
             )
 
         cls.__dataclass = dataclass
-        TASK_DATACLASS_REGISTRY[name] = dataclass
+        if dataclass is not None:
+            TASK_DATACLASS_REGISTRY[name] = dataclass
+
+            cs = ConfigStore.instance()
+            node = dataclass()
+            node._name = name
+            cs.store(name=name, group="task", node=node, provider="fairseq")
 
         return cls
 
@@ -81,26 +107,32 @@ def get_task(name):
     return TASK_REGISTRY[name]
 
 
+def import_tasks(tasks_dir, namespace):
+    for file in os.listdir(tasks_dir):
+        path = os.path.join(tasks_dir, file)
+        if (
+            not file.startswith("_")
+            and not file.startswith(".")
+            and (file.endswith(".py") or os.path.isdir(path))
+        ):
+            task_name = file[: file.find(".py")] if file.endswith(".py") else file
+            importlib.import_module(namespace + "." + task_name)
+
+            # expose `task_parser` for sphinx
+            if task_name in TASK_REGISTRY:
+                parser = argparse.ArgumentParser(add_help=False)
+                group_task = parser.add_argument_group("Task name")
+                # fmt: off
+                group_task.add_argument('--task', metavar=task_name,
+                                        help='Enable this task with: ``--task=' + task_name + '``')
+                # fmt: on
+                group_args = parser.add_argument_group(
+                    "Additional command-line arguments"
+                )
+                TASK_REGISTRY[task_name].add_args(group_args)
+                globals()[task_name + "_parser"] = parser
+
+
 # automatically import any Python files in the tasks/ directory
 tasks_dir = os.path.dirname(__file__)
-for file in os.listdir(tasks_dir):
-    path = os.path.join(tasks_dir, file)
-    if (
-        not file.startswith("_")
-        and not file.startswith(".")
-        and (file.endswith(".py") or os.path.isdir(path))
-    ):
-        task_name = file[: file.find(".py")] if file.endswith(".py") else file
-        module = importlib.import_module("fairseq.tasks." + task_name)
-
-        # expose `task_parser` for sphinx
-        if task_name in TASK_REGISTRY:
-            parser = argparse.ArgumentParser(add_help=False)
-            group_task = parser.add_argument_group("Task name")
-            # fmt: off
-            group_task.add_argument('--task', metavar=task_name,
-                                    help='Enable this task with: ``--task=' + task_name + '``')
-            # fmt: on
-            group_args = parser.add_argument_group("Additional command-line arguments")
-            TASK_REGISTRY[task_name].add_args(group_args)
-            globals()[task_name + "_parser"] = parser
+import_tasks(tasks_dir, "fairseq.tasks")

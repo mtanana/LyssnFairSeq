@@ -8,6 +8,7 @@
 Run inference for pre-processed data with a trained model.
 """
 
+import ast
 import logging
 import math
 import os
@@ -120,7 +121,7 @@ def process_predictions(
         if "words" in hypo:
             hyp_words = " ".join(hypo["words"])
         else:
-            hyp_words = post_process(hyp_pieces, args.remove_bpe)
+            hyp_words = post_process(hyp_pieces, args.post_process)
 
         if res_files is not None:
             print(
@@ -133,7 +134,7 @@ def process_predictions(
             )
 
         tgt_pieces = tgt_dict.string(target_tokens)
-        tgt_words = post_process(tgt_pieces, args.remove_bpe)
+        tgt_words = post_process(tgt_pieces, args.post_process)
 
         if res_files is not None:
             print(
@@ -143,11 +144,11 @@ def process_predictions(
             print(
                 "{} ({}-{})".format(tgt_words, speaker, id), file=res_files["ref.words"]
             )
-            # only score top hypothesis
-            if not args.quiet:
-                logger.debug("HYPO:" + hyp_words)
-                logger.debug("TARGET:" + tgt_words)
-                logger.debug("___________________")
+
+        if not args.quiet:
+            logger.info("HYPO:" + hyp_words)
+            logger.info("TARGET:" + tgt_words)
+            logger.info("___________________")
 
         hyp_words = hyp_words.split()
         tgt_words = tgt_words.split()
@@ -177,49 +178,6 @@ def prepare_result_files(args):
     }
 
 
-def load_models_and_criterions(
-    filenames, data_path, arg_overrides=None, task=None, model_state=None
-):
-    models = []
-    criterions = []
-
-    if arg_overrides is None:
-        arg_overrides = {}
-
-    arg_overrides["wer_args"] = None
-    arg_overrides["data"] = data_path
-
-    if filenames is None:
-        assert model_state is not None
-        filenames = [0]
-    else:
-        filenames = filenames.split(":")
-
-    for filename in filenames:
-
-        if model_state is None:
-            if not os.path.exists(filename):
-                raise IOError("Model file not found: {}".format(filename))
-            state = checkpoint_utils.load_checkpoint_to_cpu(filename, arg_overrides)
-        else:
-            state = model_state
-
-        args = state["args"]
-        if task is None:
-            task = tasks.setup_task(args)
-
-        model = task.build_model(args)
-        model.load_state_dict(state["model"], strict=True)
-
-        models.append(model)
-
-        criterion = task.build_criterion(args)
-        if "criterion" in state:
-            criterion.load_state_dict(state["criterion"], strict=True)
-        criterions.append(criterion)
-    return models, criterions, args
-
-
 def optimize_models(args, use_cuda, models):
     """Optimize ensemble for generation"""
     for model in models:
@@ -231,6 +189,12 @@ def optimize_models(args, use_cuda, models):
             model.half()
         if use_cuda:
             model.cuda()
+
+
+def apply_half(t):
+    if t.dtype is torch.float32:
+        return t.to(dtype=torch.half)
+    return t
 
 
 class ExistingEmissionsDecoder(object):
@@ -252,47 +216,50 @@ class ExistingEmissionsDecoder(object):
 def main(args, task=None, model_state=None):
     check_args(args)
 
+    use_fp16 = args.fp16
     if args.max_tokens is None and args.batch_size is None:
         args.max_tokens = 4000000
     logger.info(args)
 
     use_cuda = torch.cuda.is_available() and not args.cpu
 
-    if task is None:
-        # Load dataset splits
-        task = tasks.setup_task(args)
-        task.load_dataset(args.gen_subset)
+    logger.info("| decoding with criterion {}".format(args.criterion))
 
-        logger.info(
-            "| {} {} {} examples".format(
-                args.data, args.gen_subset, len(task.dataset(args.gen_subset))
-            )
+    task = tasks.setup_task(args)
+
+    # Load ensemble
+    if args.load_emissions:
+        models, criterions = [], []
+        task.load_dataset(args.gen_subset)
+    else:
+        logger.info("| loading model(s) from {}".format(args.path))
+        models, saved_cfg, task = checkpoint_utils.load_model_ensemble_and_task(
+            utils.split_paths(args.path, separator="\\"),
+            arg_overrides=ast.literal_eval(args.model_overrides),
+            task=task,
+            suffix=args.checkpoint_suffix,
+            strict=(args.checkpoint_shard_count == 1),
+            num_shards=args.checkpoint_shard_count,
+            state=model_state,
         )
+        optimize_models(args, use_cuda, models)
+        task.load_dataset(args.gen_subset, task_cfg=saved_cfg.task)
+
 
     # Set dictionary
     tgt_dict = task.target_dictionary
 
-    logger.info("| decoding with criterion {}".format(args.criterion))
-
-    # Load ensemble
-    print(args)
-    if args.load_emissions:
-        models, criterions = [], []
-    else:
-        logger.info("| loading model(s) from {}".format(args.path))
-        models, criterions, _ = load_models_and_criterions(
-            args.path,
-            data_path=args.data,
-            arg_overrides=eval(args.model_overrides),  # noqa
-            task=task,
-            model_state=model_state,
+    logger.info(
+        "| {} {} {} examples".format(
+            args.data, args.gen_subset, len(task.dataset(args.gen_subset))
         )
-        optimize_models(args, use_cuda, models)
+    )
 
     # hack to pass transitions to W2lDecoder
     if args.criterion == "asg_loss":
-        trans = criterions[0].asg.trans.data
-        args.asg_transitions = torch.flatten(trans).tolist()
+        raise NotImplementedError("asg_loss is currently not supported")
+        # trans = criterions[0].asg.trans.data
+        # args.asg_transitions = torch.flatten(trans).tolist()
 
     # Load dataset (possibly sharded)
     itr = get_dataset_itr(args, task, models)
@@ -308,15 +275,15 @@ def main(args, task=None, model_state=None):
             return W2lViterbiDecoder(args, task.target_dictionary)
         elif w2l_decoder == "kenlm":
             from examples.speech_recognition.w2l_decoder import W2lKenLMDecoder
-            print(task.target_dictionary.symbols)
+
             return W2lKenLMDecoder(args, task.target_dictionary)
         elif w2l_decoder == "fairseqlm":
             from examples.speech_recognition.w2l_decoder import W2lFairseqLMDecoder
-            print(task.target_dictionary.symbols)
+
             return W2lFairseqLMDecoder(args, task.target_dictionary)
         else:
             print(
-                "only wav2letter decoders with (viterbi, kenlm, fairseqlm) options are supported at the moment"
+                "only flashlight decoders with (viterbi, kenlm, fairseqlm) options are supported at the moment"
             )
 
     # please do not touch this unless you test both generate.py and infer.py with audio_pretraining task
@@ -357,6 +324,8 @@ def main(args, task=None, model_state=None):
         wps_meter = TimeMeter()
         for sample in t:
             sample = utils.move_to_cuda(sample) if use_cuda else sample
+            if use_fp16:
+                sample = utils.apply_to_sample(apply_half, sample)
             if "net_input" not in sample:
                 continue
 
@@ -393,10 +362,10 @@ def main(args, task=None, model_state=None):
                 speaker = None
                 # id = task.dataset(args.gen_subset).ids[int(sample_id)]
                 id = sample_id
-                # print(sample)
-                toks = sample["target"][i, :] if 'target_label' not in sample else sample["target_label"][i, :]
-                target_tokens = (
-                    utils.strip_pad(toks, tgt_dict.pad()).int().cpu()
+                toks = (
+                    sample["target"][i, :]
+                    if "target_label" not in sample
+                    else sample["target_label"][i, :]
                 )
                 target_tokens = utils.strip_pad(toks, tgt_dict.pad()).int().cpu()
                 # Process top predictions
@@ -436,7 +405,6 @@ def main(args, task=None, model_state=None):
         if lengths_t > 0:
             wer = errs_t * 100.0 / lengths_t
             logger.info(f"WER: {wer}")
-            print(f"WER: {wer}")
 
         logger.info(
             "| Processed {} sentences ({} tokens) in {:.1f}s ({:.2f}"
