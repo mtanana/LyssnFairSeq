@@ -181,6 +181,7 @@ class CtcCriterion(FairseqCriterion):
             print(targets_flat.size())
             print(torch.max(targets_flat))
             print(torch.isnan(targets_flat).any())
+            print("Target nominal lengths: "+str(target_lengths))
             print("Probs")
             print(lprobs)
             print(lprobs.size())
