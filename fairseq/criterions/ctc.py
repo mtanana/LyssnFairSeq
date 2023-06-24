@@ -120,7 +120,7 @@ class CtcCriterion(FairseqCriterion):
     def forward(self, model, sample, reduce=True, **kwargs):
         net_output = model(**sample["net_input"])
 
-        #print(net_output)
+        print("Nan in locations encoder out: " + str(torch.isnan(net_output["encoder_out"]).nonzero()))
 
         lprobs = model.get_normalized_probs(
             net_output, log_probs=True
