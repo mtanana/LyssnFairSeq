@@ -120,7 +120,7 @@ class CtcCriterion(FairseqCriterion):
     def forward(self, model, sample, reduce=True, **kwargs):
         net_output = model(**sample["net_input"])
 
-        print("Nan in locations encoder out: " + str(torch.isnan(net_output["encoder_out"]).nonzero()))
+        #print("Nan in locations encoder out: " + str(torch.isnan(net_output["encoder_out"]).nonzero()))
 
         lprobs = model.get_normalized_probs(
             net_output, log_probs=True
@@ -175,7 +175,7 @@ class CtcCriterion(FairseqCriterion):
                 reduction="sum",
                 zero_infinity=self.zero_infinity,
             )
-
+        '''
         if torch.isnan(loss).any():
             print(loss)
             print("Loss has NaN")
@@ -189,7 +189,7 @@ class CtcCriterion(FairseqCriterion):
             print("Size: "+str(lprobs.size()))
             print("Num Nan in lprobs: "+str(torch.sum(torch.isnan(lprobs))))
             print("Nan in locations: " + str(torch.isnan(lprobs).nonzero()))
-
+        '''
 
         ntokens = (
             sample["ntokens"] if "ntokens" in sample else target_lengths.sum().item()
