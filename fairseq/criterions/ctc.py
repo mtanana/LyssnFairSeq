@@ -178,8 +178,10 @@ class CtcCriterion(FairseqCriterion):
             print("Loss has NaN")
             print("Targets:")
             print(targets_flat)
+            print(targets_flat.size())
             print("Probs")
             print(lprobs)
+            print(lprobs.size())
 
         ntokens = (
             sample["ntokens"] if "ntokens" in sample else target_lengths.sum().item()
