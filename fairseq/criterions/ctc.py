@@ -190,7 +190,7 @@ class CtcCriterion(FairseqCriterion):
             print("Probs")
             print("Size: "+str(lprobs.size()))
             print("Num Nan in lprobs: "+str(torch.sum(torch.isnan(lprobs))))
-
+            print("Nan in locations: " + str(torch.isnan(lprobs).nonzero()))
 
 
         ntokens = (
