@@ -120,9 +120,7 @@ class CtcCriterion(FairseqCriterion):
     def forward(self, model, sample, reduce=True, **kwargs):
         net_output = model(**sample["net_input"])
 
-        if torch.sum(torch.isnan(net_output)) > 0:
-            print("Nan net output")
-            print(torch.sum(torch.isnan(net_output)))
+        print(net_output)
 
         lprobs = model.get_normalized_probs(
             net_output, log_probs=True
