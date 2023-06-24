@@ -172,7 +172,15 @@ class CtcCriterion(FairseqCriterion):
                 reduction="sum",
                 zero_infinity=self.zero_infinity,
             )
-        print(loss)
+
+        if torch.isnan(loss).any():
+            print(loss)
+            print("Loss has NaN")
+            print("Targets:")
+            print(targets_flat)
+            print("Probs")
+            print(lprobs)
+
         ntokens = (
             sample["ntokens"] if "ntokens" in sample else target_lengths.sum().item()
         )
