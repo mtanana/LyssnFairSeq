@@ -183,9 +183,9 @@ class CtcCriterion(FairseqCriterion):
             print(torch.isnan(targets_flat).any())
             print("Target nominal lengths: "+str(target_lengths))
             print("Probs")
-            print(lprobs)
-            print(lprobs.size())
-            print(torch.isnan(lprobs).any())
+            print("Size: "+str(lprobs.size()))
+            print("Num Nan in lprobs: "+str(torch.sum(torch.isnan(lprobs))))
+            
 
 
         ntokens = (
