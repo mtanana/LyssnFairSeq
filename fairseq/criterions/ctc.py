@@ -179,9 +179,13 @@ class CtcCriterion(FairseqCriterion):
             print("Targets:")
             print(targets_flat)
             print(targets_flat.size())
+            print(torch.max(targets_flat))
+            print(torch.isnan(targets_flat).any())
             print("Probs")
             print(lprobs)
             print(lprobs.size())
+            print(torch.isnan(lprobs).any())
+
 
         ntokens = (
             sample["ntokens"] if "ntokens" in sample else target_lengths.sum().item()
