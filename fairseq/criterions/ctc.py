@@ -119,6 +119,11 @@ class CtcCriterion(FairseqCriterion):
 
     def forward(self, model, sample, reduce=True, **kwargs):
         net_output = model(**sample["net_input"])
+
+        if torch.sum(torch.isnan(net_output)) > 0:
+            print("Nan net output")
+            print(torch.sum(torch.isnan(net_output)))
+
         lprobs = model.get_normalized_probs(
             net_output, log_probs=True
         ).contiguous()  # (T, B, C) from the encoder
@@ -185,7 +190,7 @@ class CtcCriterion(FairseqCriterion):
             print("Probs")
             print("Size: "+str(lprobs.size()))
             print("Num Nan in lprobs: "+str(torch.sum(torch.isnan(lprobs))))
-            
+
 
 
         ntokens = (
