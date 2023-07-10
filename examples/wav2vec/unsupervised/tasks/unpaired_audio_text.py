@@ -332,7 +332,7 @@ class UnpairedAudioText(FairseqTask):
         """Return the :class:`~fairseq.data.Dictionary` for the language
         model."""
         return self._target_dictionary
-    
+
     def set_target_dictionary(self, file_path):
         print("Loading dict" + str(file_path))
         self._target_dictionary = Dictionary.load(file_path)
