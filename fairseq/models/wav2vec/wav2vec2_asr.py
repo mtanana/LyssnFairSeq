@@ -577,7 +577,7 @@ class Wav2VecEncoder(FairseqEncoder):
                     ):
                         del state["model"][k]
 
-            print(model)
+
             model.load_state_dict(state["model"], strict=True)
 
     def set_num_updates(self, num_updates):
